@@ -10,7 +10,11 @@ set -eu
 IMAGE=${1:-zenzai-kkc:latest}
 OUTDIR=${2:-dist}
 
-if command -v podman >/dev/null 2>&1; then
+# 両方入っている環境では自動検出が曖昧になる．イメージをビルドした側と
+# 食い違うと，存在しないイメージをレジストリから取りに行って落ちる．
+if [ -n "${ZKKC_ENGINE:-}" ]; then
+    CE=$ZKKC_ENGINE
+elif command -v podman >/dev/null 2>&1; then
     CE=podman
 elif command -v docker >/dev/null 2>&1; then
     CE=docker
@@ -18,6 +22,11 @@ else
     echo "export-bundle: podman or docker is required" >&2
     exit 1
 fi
+
+command -v "$CE" >/dev/null 2>&1 || {
+    echo "export-bundle: $CE not found" >&2
+    exit 1
+}
 
 mkdir -p "$OUTDIR"
 TAR="$OUTDIR/zenzai-kkc-bundle.tar.gz"

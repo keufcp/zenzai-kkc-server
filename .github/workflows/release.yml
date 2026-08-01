@@ -34,6 +34,8 @@ jobs:
         run: docker run --rm --entrypoint /opt/zenzai-kkc/verify-bundle.sh zenzai-kkc:latest
 
       - name: Export bundle
+        env:
+          ZKKC_ENGINE: docker
         run: |
           scripts/export-bundle.sh zenzai-kkc:latest dist
           cd dist
