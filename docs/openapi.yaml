@@ -1,0 +1,219 @@
+openapi: 3.0.3
+
+info:
+  title: zenzai-kkc-server API
+  version: "1.0.0"
+  license:
+    name: MIT
+    url: https://opensource.org/license/mit
+  description: |
+    日本語かな漢字変換 HTTP API．
+
+    ひらがなの読みを受け取り，かな漢字変換した結果を返す．
+
+    # 互換性
+
+    次の変更を行う場合はパスの版を上げる．
+
+    - 既存パラメータの削除，名称の変更，型の変更
+    - 必須パラメータの追加
+    - 成功応答の媒体型または構造の変更
+    - 既存の要求に対して返すステータスコードの意味の変更
+
+    次は版を据え置く．
+
+    - 任意パラメータの追加
+    - 応答オブジェクトへのメンバの追加
+    - エンドポイントの追加
+    - `detail` メンバの文言の変更
+
+security: []
+
+servers:
+  - url: "{baseUrl}"
+    variables:
+      baseUrl:
+        default: "http://127.0.0.1:61234"
+        description: 例．配置先に応じて指定する．
+
+paths:
+  /v1/convert:
+    get:
+      operationId: convert
+      summary: かな漢字変換を行う
+      description: ひらがなの読みを漢字かな交じり文へ変換する．
+      parameters:
+        - name: text
+          in: query
+          required: true
+          description: |
+            変換対象の読み．ひらがなで与える．
+            1 文字以上 256 文字以下．
+            句読点・英数字・記号が混在してもよい．
+
+            入力からは空白 (U+0020, U+3000) と改行 (U+000A, U+000D) が除去される．
+            結果にも含まれない．
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+          example: "わたしのともだちはりょうりがじょうずです"
+      responses:
+        "200":
+          description: 変換結果．
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConvertResult"
+              example:
+                result: "私の友達は料理が上手です"
+        "400":
+          description: |
+            不正なリクエスト．
+
+            `text` が指定されていない，空である，または 256 文字を超えている．
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                detail: "text must be between 1 and 256 characters."
+        "405":
+          description: 対応していないメソッド．
+          headers:
+            Allow:
+              required: true
+              description: 当該パスで受け付けるメソッド．
+              schema:
+                type: string
+              example: "GET"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "about:blank"
+                title: "Method Not Allowed"
+                status: 405
+                detail: "Only GET is allowed on this path."
+        "500":
+          description: 内部エラー．
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "about:blank"
+                title: "Internal Server Error"
+                status: 500
+                detail: "The conversion produced an empty result."
+        "503":
+          description: |
+            変換を実行できない状態．
+
+            クライアントは間隔を空けて再試行してよい．
+          headers:
+            Retry-After:
+              required: false
+              description: 再試行までに空けるべき秒数．
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "about:blank"
+                title: "Service Unavailable"
+                status: 503
+                detail: "The converter is not responding."
+
+  /v1/health:
+    get:
+      operationId: getHealth
+      summary: 死活状態を返す
+      responses:
+        "200":
+          description: 変換を実行できる状態．
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: "ok"
+        "405":
+          description: 対応していないメソッド．
+          headers:
+            Allow:
+              required: true
+              description: 当該パスで受け付けるメソッド．
+              schema:
+                type: string
+              example: "GET"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "about:blank"
+                title: "Method Not Allowed"
+                status: 405
+                detail: "Only GET is allowed on this path."
+        "503":
+          description: 変換を実行できない状態．
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: "unavailable"
+
+components:
+  schemas:
+    ConvertResult:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          minLength: 1
+          description: |
+            変換結果．
+            前後に空白および改行を含まない．
+            空文字列になることはない．
+
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+
+    Problem:
+      description: RFC 9457 の Problem Details．
+      type: object
+      required: [title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: "about:blank"
+          description: 問題の種類を識別する URI．
+        title:
+          type: string
+          description: 問題の種類を表す短い要約．
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: HTTP ステータスコード．
+        detail:
+          type: string
+          description: |
+            この発生事例に固有の説明．
+            文言は版を上げずに変更されうる．クライアントは依存してはならない．
