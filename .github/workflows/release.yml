@@ -1,0 +1,64 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          df -h /
+
+      - name: Build image
+        run: docker build -t zenzai-kkc:latest .
+
+      - name: Verify bundle
+        run: docker run --rm --entrypoint /opt/zenzai-kkc/verify-bundle.sh zenzai-kkc:latest
+
+      - name: Export bundle
+        run: |
+          scripts/export-bundle.sh zenzai-kkc:latest dist
+          cd dist
+          sha256sum zenzai-kkc-bundle.tar.gz > zenzai-kkc-bundle.tar.gz.sha256
+          cat zenzai-kkc-bundle.tar.gz.sha256
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          api=https://api.github.com/repos/$GITHUB_REPOSITORY
+          id=$(curl -fsS -X POST "$api/releases" \
+                 -H "Authorization: Bearer $GH_TOKEN" \
+                 -H "Accept: application/vnd.github+json" \
+                 -d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"generate_release_notes\":true}" \
+               | jq -r .id)
+
+          for f in dist/zenzai-kkc-bundle.tar.gz dist/zenzai-kkc-bundle.tar.gz.sha256; do
+              curl -fsS -X POST \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary "@$f" \
+                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$id/assets?name=$(basename "$f")" \
+                > /dev/null
+              echo "uploaded: $f"
+          done
