@@ -36,10 +36,10 @@ podman compose up -d
 
 ### ホストに直接（LXC 等）
 
+root で実行する．
+
 ```sh
-git clone https://github.com/keufcp/zenzai-kkc-server
-cd zenzai-kkc-server
-sudo ZKKC_PORT=61234 scripts/setup.sh
+ZKKC_PORT=61234 sh -c "$(curl -fsSL https://raw.githubusercontent.com/keufcp/zenzai-kkc-server/main/scripts/setup.sh)"
 ```
 
 GitHub Releases から tar バンドルを取得して `/opt/zenzai-kkc` に展開し，
@@ -47,7 +47,12 @@ systemd サービス `zenzai-kkc` として登録・起動する．
 `/v1/health` が応答するまで待ってから終了するので，スクリプトが成功したなら
 サーバは実際に応答できる状態にある．
 
-バージョンを指定するときは引数に渡す（省略時は最新）．
+版を固定する場合は，スクリプトも同じタグから取る．
+
+```sh
+ZKKC_PORT=61234 sh -c "$(curl -fsSL https://raw.githubusercontent.com/keufcp/zenzai-kkc-server/v0.1.0/scripts/setup.sh)" setup v0.1.0
+```
+
 手元でビルドしたバンドルを使うときは `ZKKC_BUNDLE` にパスを渡す．
 
 ### 自分でビルドする
