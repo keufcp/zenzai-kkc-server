@@ -1,0 +1,36 @@
+version: "2"
+
+linters:
+  # 既定 (errcheck, govet, ineffassign, staticcheck, unused) に
+  # 実質的な検査を足す．書式の好みに属する linter は入れない．
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - durationcheck
+    - errorlint
+    - funcorder
+    - gocritic
+    - gosec
+    - makezero
+    - misspell
+    - nilerr
+    - perfsprint
+    - prealloc
+    - revive
+    - unconvert
+    - wastedassign
+    - whitespace
+    - wrapcheck
+  # noctx と contextcheck は入れない．
+  # どちらもリクエスト単位の処理を前提とした検査であり，
+  # 常駐する子プロセスを持つこの設計には当てはまらない．
+  # 子プロセスをリクエストの context に紐づけると，1 件のキャンセルで
+  # 常駐プロセスが落ちる．停止は Stop() が担う．
+  exclusions:
+    rules:
+      # G204 / G702: 変換器のパスと引数は運用者が設定するものであり，
+      # 外部からの入力ではない．この検査を満たす実装はできない．
+      - linters:
+          - gosec
+        text: "G204|G702"
