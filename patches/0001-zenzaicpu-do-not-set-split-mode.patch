@@ -1,0 +1,43 @@
+ZenzaiCPU で split_mode を設定しない
+
+適用先: azooKey/AzooKeyKanaKanjiConverter @ bbef9d2d99a2e9e69ac3f7e2e07b08474de59a81
+作成者: keufcp
+作成日: 2026-07-27
+upstream への報告: 未
+
+ZenzaiCPU trait は model_params.split_mode に LLAMA_SPLIT_MODE_NONE を設定する．
+llama.cpp はこのモードのとき main_gpu を「GPU デバイス一覧」に対して検証するが
+(src/llama.cpp:9484-9489, b4846)，GPU バックエンドを含まない CPU 専用ビルドでは
+この一覧が常に空になるため，main_gpu の既定値 0 が必ず範囲外と判定される．
+
+    llama_model_load_from_file_impl: invalid value for main_gpu: 0 (available devices: 0)
+
+結果としてモデルのロードが失敗し，Zenzai が無効のまま変換が行われる．
+エラーは stderr に出るだけで変換自体は継続するため，気付きにくい．
+
+split_mode = LLAMA_SPLIT_MODE_NONE は「複数 GPU に分割せず単一 GPU に固定する」指定
+であり，GPU が 0 個の構成では指定する意味がない．この 1 行のみを落とす．
+n_gpu_layers = 0 と offload_kqv = false はそのまま維持されるため，
+CPU 専用という trait の意図は変わらない．
+
+なお GPU 版の Zenzai trait は Package.swift が -lobjc を要求するため Linux では
+リンクできない．したがって Linux / CPU では本パッチが必須となる．
+
+diff --git a/Sources/KanaKanjiConverterModule/ConversionAlgorithms/Zenzai/Zenz/ZenzContext.swift b/Sources/KanaKanjiConverterModule/ConversionAlgorithms/Zenzai/Zenz/ZenzContext.swift
+index 6acd0d3..ffdb660 100644
+--- a/Sources/KanaKanjiConverterModule/ConversionAlgorithms/Zenzai/Zenz/ZenzContext.swift
++++ b/Sources/KanaKanjiConverterModule/ConversionAlgorithms/Zenzai/Zenz/ZenzContext.swift
+@@ -59,13 +59,12 @@ final class ZenzContext {
+         llama_backend_init()
+         var model_params = llama_model_default_params()
+         model_params.use_mmap = true
+         #if ZenzaiCPU
+         // CPU 専用: GPU へのオフロードを無効化
+         model_params.n_gpu_layers = 0
+-        model_params.split_mode = LLAMA_SPLIT_MODE_NONE
+         #endif
+         let model = llama_model_load_from_file(path, model_params)
+         guard let model else {
+             debug("Could not load model at \(path)")
+             throw ZenzError.couldNotLoadModel(path: path)
+         }
