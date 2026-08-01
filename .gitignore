@@ -1,0 +1,9 @@
+# ビルド成果物
+/dist/
+/build/
+/server/zenzai-kkc-server
+*.tar.gz
+
+# ビルド時に取得する第三者コード・モデル
+# （このリポジトリにはコミットしない．Dockerfile が固定 ref で取得する）
+*.gguf
