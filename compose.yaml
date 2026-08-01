@@ -1,0 +1,18 @@
+services:
+  zenzai-kkc:
+    build: .
+    image: zenzai-kkc:latest
+    # コンテナ内では 0.0.0.0 で待ち受け，どこへ公開するかは ports で決める．
+    # 既定では localhost からのみ到達できる．
+    ports:
+      - "${ZKKC_PUBLISH:-127.0.0.1:61234}:61234"
+    environment:
+      ZKKC_BIND: "0.0.0.0"
+      ZKKC_PORT: "61234"
+      ZKKC_MODEL: "${ZKKC_MODEL:-/opt/zenzai-kkc/models/zenz-v3.2-xsmall.gguf}"
+      ZKKC_INFERENCE_LIMIT: "${ZKKC_INFERENCE_LIMIT:-1}"
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
