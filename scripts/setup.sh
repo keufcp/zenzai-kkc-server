@@ -123,7 +123,7 @@ while [ "$i" -lt 120 ]; do
     if ! systemctl is-active --quiet "$SERVICE"; then
         break
     fi
-    if curl -fsS -o /dev/null "http://$HOST:$ZKKC_PORT/v1/health"; then
+    if curl -fs -o /dev/null "http://$HOST:$ZKKC_PORT/v1/health"; then
         ready=1
         break
     fi
