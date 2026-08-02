@@ -42,6 +42,28 @@ root で実行する．
 ZKKC_PORT=61234 sh -c "$(curl -fsSL https://raw.githubusercontent.com/keufcp/zenzai-kkc-server/main/scripts/setup.sh)"
 ```
 
+`ZKKC_BIND` は，サーバを動かすホスト自身が持つどのアドレスで待ち受けるかを指定する．
+接続元のアドレスを書く欄ではなく，接続元を絞る用途には使えない．指定できるのは 1 個だけ．
+
+既定の `127.0.0.1` はループバックなので，導入したホストの中からしか到達できない．
+別のホストから使う場合は `0.0.0.0` を渡す．
+
+```sh
+ZKKC_BIND=0.0.0.0 ZKKC_PORT=61234 sh -c "$(curl -fsSL https://raw.githubusercontent.com/keufcp/zenzai-kkc-server/main/scripts/setup.sh)"
+```
+
+| `ZKKC_BIND` | 到達できる経路 |
+|---|---|
+| `127.0.0.1`（既定） | そのホストの中から `http://127.0.0.1:61234`<br>LAN からは不可 |
+| `192.168.1.111` | LAN から `http://192.168.1.111:61234`<br>そのホストの中からの `127.0.0.1` は不可 |
+| `0.0.0.0` | 上記の両方 |
+| `::` | 上記に加えて IPv6 のアドレス |
+
+このサーバに認証機構は無い．到達できる範囲はネットワーク側で制限する．
+
+導入後に変更する場合は `/etc/default/zenzai-kkc` を編集して
+`systemctl restart zenzai-kkc` する．
+
 GitHub Releases から tar バンドルを取得して `/opt/zenzai-kkc` に展開し，
 systemd サービス `zenzai-kkc` として登録・起動する．
 `/v1/health` が応答するまで待ってから終了するので，スクリプトが成功したなら
